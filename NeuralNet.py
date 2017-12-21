@@ -9,7 +9,7 @@ import sys
 sys.path.append('..')
 from utils import *
 from pytorch_classification.utils import Bar, Logger, AverageMeter, accuracy, mkdir_p, savefig
-from NeuralNet import NeuralNet
+#from NeuralNet import NeuralNet
 
 import argparse
 import torch
@@ -39,7 +39,7 @@ class NeuralNet():
     })
 
     def __init__(self, game):
-        self.nnet = SMNNet(game,args)
+        self.nnet = SMNNet(game,self.args)
         self.board_x, self.board_y = game.getBoardSize()
         self.action_size = game.getActionSize()
         
@@ -122,7 +122,7 @@ class NeuralNet():
 
         # preparing input
         board = torch.FloatTensor(board.astype(np.float64))
-        if args.cuda: board = board.contiguous().cuda()
+        if self.args.cuda: board = board.contiguous().cuda()
         board = Variable(board, volatile=True)
         board = board.view(1, self.board_x, self.board_y)
 

@@ -1,12 +1,19 @@
 class Board():
     # list of all 8 directions on the board, as (x,y) offsets
     __directions = [(1,1),(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1),(0,0)]
-
+    __oldBoard = []
 
     def __init__(self, n):
         "Set up initial board configuration."
 
         self.n = n
+        # self.oldBoard = {}
+        # self.oldBoard.n = n
+        # self.oldBoard.pieces = [None]*self.n
+        # for i in range(self.oldBoard.n):
+        #     self.oldBoard.pieces[i] = [0]*self.oldBoard.n
+
+        #self.oldBoard = __oldBoard
         # Create the empty board array.
         self.pieces = [None]*self.n
         for i in range(self.n):
@@ -15,6 +22,28 @@ class Board():
         # Set up the initial 2 spaces
         self.pieces[0][0] = 1           #left most top
         self.pieces[int(self.n/2)-1][int(self.n)-1] = -1 #right most bottom
+
+    # @staticmethod
+    # def init_without_board(n):
+    #     self.n = n
+    #     # Create the empty board array.
+    #     self.pieces = [None]*self.n
+    #     for i in range(self.n):
+    #         self.pieces[i] = [0]*self.n
+
+    #     # Set up the initial 2 spaces
+    #     self.pieces[0][0] = 1           #left most top
+    #     self.pieces[int(self.n/2)-1][int(self.n)-1] = -1 #right most bottom
+    #     return self
+
+    @staticmethod
+    def init_with_oldboard(oldBoard):
+        #board = Board(oldBoard.n)
+        for x in oldBoard.n:
+            for y in oldBoard.n:
+                __oldBoard[x*oldBoard.n+j] = oldBoard.pieces[x][y]
+        return __oldBoard
+        #board.oldBoard = oldBoard
 
     def __getitem__(self, index): 
         return self.pieces[index]
@@ -53,14 +82,14 @@ class Board():
         (x,y) = square
 
         # determine the color of the piece.
-        color = _get_color(self,square)
+        color = self._get_color(square)
         if color==0:
             return None
 
         # search all possible directions.
         moves = []
         for direction in self.__directions:
-            move = self._discover_move(square, direction)
+            move = list_to_board(self.__oldBoard)._discover_move(square, direction)
             if move:
                 # print(square,move,direction)
                 moves.append(move)
@@ -89,18 +118,19 @@ class Board():
         """ Returns the endpoint for a legal move, starting at the given origin,
         moving by the given increment."""
         (x,y) = origin
-        color = _get_color(self,(x,y))
+        color = self._get_color((x,y))
         flips = []
         #output should be origin,destination,amount
+        oldBoard = list_to_board(self.__oldBoard)
         for a, b in Board._increment_move(origin, direction, self.n):
-            if self[a][b] > 254:
+            if oldBoard.pieces[a][b] > 254: # self[a][b] > 254:
                 return None
             else:
-                if x == a && y == b:
+                if x == a and y == b:
                     return Move(origin,(a,b),0)
                 else:
                     #hier even defineren hoeveel je wilt overschrijven.
-                    return Move(origin,(a,b),int(self[x][y])*0.7)
+                    return Move(origin,(a,b),int(oldBoard.pieces[x][y])*0.7)
             # if self[x][y] == 0:
             #     if flips:
             #         # print("Found", x,y)
@@ -113,11 +143,12 @@ class Board():
             #     # print("Flip",x,y)
             #     flips.append((x, y))
 
-    def _upgrade_board(self, oldBoard):
+    def _upgrade_board(self,changes):
+        #self = self.__oldBoard
         for y in range(self.n):
             for x in range(self.n):
                 # ik weet niet zeker of dit kan dalijk gaat de bot express worden overschijven dat ze hetzelfde blijven zodat de waarde groeit wanneer dit eigenlijk niet mag
-                if self[x][y]==oldBoard.pieces[x][y]:
+                if changes[x][y]!= 1:
                     #increment
                     value = self[x][y]
                     if value >= 128:
@@ -159,6 +190,14 @@ class Board():
             return -1
         if self[x][y] == 0:
             return 0
+
+    @staticmethod
+    def list_to_board(l):
+        b = Board(self.n)
+        b.n = self.n
+        for i in len(l):
+            b.pieces[i/self.n][i%self.n] = l[i]
+        return b
 
 class Move:
     def __init__(origin, destination, amount):

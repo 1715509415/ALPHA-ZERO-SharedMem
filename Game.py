@@ -1,3 +1,9 @@
+from __future__ import print_function
+from SharedMemLogic import Board
+import numpy as np
+import sys
+sys.path.append('..')
+
 class Game():
     """
     This class specifies the base Game class. To define your own game, subclass
@@ -11,8 +17,17 @@ class Game():
     __directions = [(1,1),(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1),(0,0)]
     __previousTurn = 0
     __oldBoard = Board(8)
+    __Changes = []
     def __init__(self,n):
         self.n = n
+        # for i in range(self.n):
+        #     for j in range(self.n):
+        #         self.__Changes[i][j] = [0]
+
+        self.__Changes = [0]*self.n
+        for i in range(self.n):
+            self.__Changes[i] = [0]*self.n
+
 
     def getInitBoard(self):
         """
@@ -20,7 +35,7 @@ class Game():
             startBoard: a representation of the board (ideally this is the form
                         that will be the input to your neural network)
         """
-        b = Board(self.n)
+        b = Board.init_with_oldboard(self.__oldBoard)
         return np.array(b.pieces)
 
     def getBoardSize(self):
@@ -37,7 +52,7 @@ class Game():
             actionSize: number of all possible actions
         """
         #this should be the outputs + the endTurn signal
-        return self.n*self.n+1 #misschien dit toch kleiner maken zodat alleen de plaatsen waar die naar toe kan kan en niet hoeveel. dan zou 256 weg moeten
+        return self.n*self.n*9+1 #je kunt eventueel nog de de hoeveelheid toevoegen door nog een factor 256 toe te voegen
 
     def getNextState(self, board, player, action):
         """
@@ -53,31 +68,42 @@ class Game():
 
 
         # deze actie moet uit de source code van lucrasoft gehaald worden
-        b = Board(self.n)
+        b = init_with_oldboard(self.__oldBoard)
         b.pieces = np.copy(board)
 
 
-        if __previousTurn == -player && player == 1:
-            b._upgrade_board(__oldBoard)
-            __oldBoard.pieces = np.copy(b);
-        __previousTurn = player
+        if self.__previousTurn == -player and player == 1:
+            b._upgrade_board(self.__Changes)
+            self.__oldBoard.pieces = np.copy(b)
+            #clear changes after they get used in upgrade board
+            for i in range(self.n):
+                for j in range(self.n):
+                    self.__Changes[i][j] = [0]
+        self.__previousTurn = player
 
 
         #convert action to coordinates
-        index = action
-        z = index / (self.n*self.n)
-        index -= z * self.n * self.n
-        x = index / self.n
-        y = index % self.n
+        (x,y,z) = getCoords(action);
         (dx,dy) = __directions[z]
 
-        #define hier wat je move gaat zijn. gebruik hier action. of iets van input en output board. move zou misschien ook een array kunnen zijn van actions ofzo
-        move = Move((x,y),(x+dx,y+dy),0)
-        b.execute_move(move,player)     #in logic maken
-        if move.endTurn:
+
+        if action[-1]: #== self.n*self.n*9   #als laatste element waar is moet je naar de beurt van de tegenstander.
+            #define hier wat je move gaat zijn. gebruik hier action. of iets van input en output board. move zou misschien ook een array kunnen zijn van actions ofzo
+            #move = Move((x,y),(x+dx,y+dy),0)
+            #b.execute_move(move,player)     #in logic maken
             return (b.pieces, -player)
         else:
+            #define hier wat je move gaat zijn. gebruik hier action. of iets van input en output board. move zou misschien ook een array kunnen zijn van actions ofzo
+            move = Move((x,y),(x+dx,y+dy),0)
+            if not(x == x+dx and y == y+y+dy):
+                self.__Changes[x][y] = 1
+                self.__Changes[x+dx][y+cy] = 1
+                # __Changes.append((x,y))
+
+            b.execute_move(move,player)     #in logic maken
             return (b.pieces, player)
+
+
 
     def getValidMoves(self, board, player):
         """
@@ -91,14 +117,16 @@ class Game():
                         0 for invalid moves
         """
         valids = [0] * self.getActionSize()
-        b = Board(self.n)
+        b = Board.init_with_oldboard(self.__oldBoard)
         b.pieces = np.copy(board)
-        legalMoves = b.get_legal_moves(player)      #in logic maken
+        legalMoves = b.get_legal_moves(player)      #in logic maken         Move(origin,destination,amount)
         if len(legalMoves)==0:
-        	valids[-1]=1
-        	return np.array(valids)
-        for x, y in legalMoves:
-        	valids[self.n*x+y]=1
+            valids[-1]=1 #dit is het laatste element. min getal telt vanaf achter ipv voor
+            return np.array(valids)
+        for move in legalMoves:
+            ((x1,y1), (x2,y2),amount) = move
+            z = getIndexByDirection(getDirection((x1,y1),(x2,y2)))
+            valids[getIndex(x1,y1,z)]=1         #klopt dit?
         return np.array(valids)
 
     def getGameEnded(self, board, player):
@@ -110,16 +138,33 @@ class Game():
         Returns:
             r: 0 if game has not ended. 1 if player won, -1 if player lost.
         """
-        b.Board(self.n)
+        b = Board.init_with_oldboard(self.__oldBoard)
         b.pieces = np.copy(board)
-        if b.has_legal_moves(player):
-            return 0
-        if b.has_legal_moves(-player):
-            return 0
-        if b.countDiff(player) > 0:
-            return 1
-        else:
+
+        player1 = 0
+        player2 = 0
+        for i in range(self.n):
+            for j in range(self.n):
+                if b.pieces[i][j] > 0:
+                    player1 += abs(int(b.pieces[i][j]))
+                elif b.pieces[i][j] < 0:
+                    player2 += abs(int(b.pieces[i][j]))
+
+        if player1 == 0:
             return -1
+        if player2 == 0:
+            return 1
+        return 0
+
+        # #dit niet zo doen maar aan de hand van de punten
+        # if b.has_legal_moves(player):
+        #     return 0
+        # if b.has_legal_moves(-player):
+        #     return 0
+        # if b.countDiff(player) > 0:
+        #     return 1
+        # else:
+        #     return -1
 
     def getCanonicalForm(self, board, player):
         """
@@ -135,6 +180,7 @@ class Game():
                             board as is. When the player is black, we can invert
                             the colors and return the board.
         """
+
         return player * board
 
     def getSymmetries(self, board, pi):
@@ -148,7 +194,19 @@ class Game():
                        form of the board and the corresponding pi vector. This
                        is used when training the neural network from examples.
         """
-        pass
+        assert(len(pi) == self.n**2+1)  # 1 for pass
+        pi_board = np.reshape(pi[:-1], (self.n, self.n))
+        l = []
+
+        for i in range(1, 5):
+            for j in [True, False]:
+                newB = np.rot90(board, i)
+                newPi = np.rot90(pi_board, i)
+                if j:
+                    newB = np.fliplr(newB)
+                    newPi = np.fliplr(newPi)
+                l += [(newB, list(newPi.ravel()) + [pi[-1]])]
+        return l
 
     def stringRepresentation(self, board):
         """
@@ -160,11 +218,6 @@ class Game():
                          Required by MCTS for hashing.
         """
         return board.tostring()
-
-    def getScore(board):
-        b = Board(self.n)
-        b.pieces = np.copy(board)
-        return b.countDiff(player)
 
 def display(board):
     n = board.shape[0]
@@ -187,3 +240,26 @@ def display(board):
         print("|")
 
     print("   -----------------------")
+
+def getCoords(index):
+    z = index / (self.n*self.n)
+    index -= z * self.n * self.n
+    x = index / self.n
+    y = index % self.n
+    return(x,y,z)
+
+def getIndex(x,y,z):
+    return z * self.n * self.n + y * self.n + x
+
+def getDirection(origin, destination):
+    (x1,y1) = origin
+    (x2,y2) = destination
+    dx = x1-x2
+    dy = y1-y2
+    return (dx,dy)
+
+def getIndexByDirection(dx,dy):
+    for i in len(__directions):
+        if(self.__directions[i]==(dx,dy)):
+            return i
+    return -1

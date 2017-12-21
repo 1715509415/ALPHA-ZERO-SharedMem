@@ -1,7 +1,10 @@
 from Coach import Coach
-from othello.OthelloGame import OthelloGame
-from othello.NNet import NNetWrapper as nn
+# from othello.OthelloGame import OthelloGame
+# from othello.NNet import NNetWrapper as nn
 from utils import *
+
+from Game import Game
+from NeuralNet import NeuralNet as nn
 
 args = dotdict({
     'numIters': 1000,
@@ -19,16 +22,7 @@ args = dotdict({
 })
 
 if __name__=="__main__":
-    # g = Game(8)
-    # nnet = nn(g)
-
-    # if args.load_model:
-    #     nnet.load_checkpoint(args.load_folder_file[0], args.load_folder_file[1])
-
-    # c = Coach(g, nnet, args)
-    # c.learn()
-
-    g = OthelloGame(6)
+    g = Game(8)
     nnet = nn(g)
 
     if args.load_model:
@@ -36,3 +30,12 @@ if __name__=="__main__":
 
     c = Coach(g, nnet, args)
     c.learn()
+
+    # g = OthelloGame(6)
+    # nnet = nn(g)
+
+    # if args.load_model:
+    #     nnet.load_checkpoint(args.load_folder_file[0], args.load_folder_file[1])
+
+    # c = Coach(g, nnet, args)
+    # c.learn()
